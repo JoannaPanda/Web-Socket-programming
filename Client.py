@@ -57,7 +57,7 @@ while True:
         elif login_response == "Invalid Password":
             print("[recv] Invalid Password. Please try again!")
             password = input("password: ")
-            auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password}))
+            auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password, 'udpPortNum': udpPort}))
             clientSocket.sendall(auth_message.encode('utf-8'))
 
             data = clientSocket.recv(1024)
@@ -66,7 +66,7 @@ while True:
             print("[recv] Username invalid. Please try again!")
             username = input("username: ")
             password = input("password: ")
-            auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password}))
+            auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password, 'udpPortNum': udpPort}))
             clientSocket.sendall(auth_message.encode('utf-8'))
 
             data = clientSocket.recv(1024)
