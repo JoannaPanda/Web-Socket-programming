@@ -1,6 +1,6 @@
 """
     Python 3
-    Usage: python3 Client.py SERVER_IP SERVER_PORT UDP_PORT
+    Usage: python3 Client.py SERVER_IP (129.94.242.115) SERVER_PORT UDP_PORT
     coding: utf-8
 
 """
@@ -31,7 +31,7 @@ while True:
     password = input("password: ")
     logged_in = False
     # authentication message is turned to dict structure
-    auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password}))
+    auth_message = json.dumps(dict({'requestType': 'login', 'username': username,'password': password, 'udpPortNum': udpPort}))
     
     clientSocket.sendall(auth_message.encode('utf-8'))
 
@@ -44,6 +44,7 @@ while True:
     while not logged_in:
         if login_response == "":
             print("[recv] Message from server is empty!")
+            exit()
         elif login_response == "Login success":
             print("[recv] Welcome to TOOM!")
             logged_in = True

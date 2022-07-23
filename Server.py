@@ -7,18 +7,18 @@
 """
 import json
 from socket import *
-import string
 from datetime import datetime
 from threading import Thread
 import sys, select
-import time
 
 # acquire server host and port from command line parameter
 if len(sys.argv) != 3:
     print("\n===== Error usage, python3 Server.py SERVER_PORT number-of-allowed-failed-consecutive-attempt ======\n")
     exit(0)
 
-serverHost = "127.0.0.1"
+serverName = gethostname()
+serverHost = gethostbyname(serverName)
+print(serverHost)
 serverPort = int(sys.argv[1])
 allowedFail = int(sys.argv[2])
 
@@ -41,6 +41,7 @@ serverSocket.bind(serverAddress)
 
 validCredentials = {}
 blockRecord = {}
+userLog = {}
 
 """
     Define multi-thread class for client
@@ -104,6 +105,7 @@ class ClientThread(Thread):
 
         enteredUsername = message['username']
         enteredPassword = message['password']
+        clientUDPport = message['udpPortNum']
         
         # check if entered username is in credentials.txt
         if enteredUsername in validCredentials:
@@ -139,7 +141,15 @@ class ClientThread(Thread):
         else:
             reply = 'Username invalid'
         
-        
+        if reply == "Login success":
+            userLog[enteredUsername] = dict({'logTimestamp': datetime.now(), 'clientIPaddress': clientAddress[0], 'clientUDPport': clientUDPport})
+            userLogFile = open("userlog.txt", 'a')
+            numLogs = len(userLog)
+            logTimestamp = userLog[enteredUsername].get('logTimestamp').strftime("%d %b %Y %H:%M:%S")
+            newLogLine = "{}; {}; {}; {}; {}\n".format(numLogs, logTimestamp,enteredUsername,clientAddress[0],clientUDPport)
+            userLogFile.write(newLogLine)
+            userLogFile.close()
+
         print('[send] ' + reply)
         self.clientSocket.send(reply.encode('utf-8'))
 
