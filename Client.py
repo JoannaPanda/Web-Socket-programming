@@ -101,13 +101,37 @@ while True:
             atu_response = data.decode('utf-8')
             print(atu_response)
         elif command.split(" ")[0] == "SRB":
-            print("haven't implemented yet")
+            if len(command.split(" ")) == 1:
+                print("Error, invalid command! Please enter SRB username1 username2 ...")
+                continue
+            command_content = json.dumps(dict({'requestType': 'SRB', 'room_users': command.split(" ")[1:], 'username': username}))
+            clientSocket.sendall(command_content.encode('utf-8'))
+            
+            data = clientSocket.recv(1024)
+            srb_response = data.decode('utf-8')
+            print(srb_response)
         elif command.split(" ")[0] == "SRM":
-            print("haven't implemented yet")
+            if len(command.split(" ")) < 3:
+                print("Error, invalid command! Please enter SRM roomID message")
+                continue
+            command_content = json.dumps(dict({'requestType': 'SRM', 'roomID': command.split(" ")[1], 'username': username, 'message': command.split(" ", 2)[2]}))
+            clientSocket.sendall(command_content.encode('utf-8'))
+            
+            data = clientSocket.recv(1024)
+            srm_response = data.decode('utf-8')
+            print(srm_response)
         elif command.split(" ")[0] == "RDM":
             print("haven't implemented yet")
         elif command.split(" ")[0] == "OUT":
-            print("haven't implemented yet")
+            if len(command.split(" ")) > 1:
+                print("Error, invalid command! Please enter OUT only.")
+                continue
+            command_content = json.dumps(dict({'requestType': 'OUT', 'username': username}))
+            clientSocket.sendall(command_content.encode('utf-8'))
+            
+            data = clientSocket.recv(1024)
+            out_response = data.decode('utf-8')
+            print(out_response)
         elif command.split(" ")[0] == "UPD":
             print("haven't implemented yet")
         else:

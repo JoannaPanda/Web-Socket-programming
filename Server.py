@@ -43,6 +43,7 @@ validCredentials = {}
 blockRecord = {}
 userLog = {}
 messageLog = {}
+roomsLog = {}
 open('userlog.txt', 'w').close()
 open('messagelog.txt', 'w').close()
 
@@ -83,6 +84,15 @@ class ClientThread(Thread):
             elif message['requestType'] == 'ATU':
                 print(f"[recv] Download Active Users request from {message['username']}")
                 self.process_atu(message)
+            elif message['requestType'] == 'SRB':
+                print(f"[recv] : Separate Room Building request from {message['username']}")
+                self.process_srb(message)
+            elif message['requestType'] == 'SRM':
+                print(f"[recv] : Separate Room Message request from {message['username']}")
+                self.process_srm(message)
+            elif message['requestType'] == 'OUT':
+                print(f"[recv] : Log out request from {message['username']}")
+                self.process_out(message)
             else:
                 print("[recv] " + message)
                 print("[send] Cannot understand this message")
@@ -149,7 +159,7 @@ class ClientThread(Thread):
             userLogFile.write(newLogLine)
             userLogFile.close()
 
-        print('[send] ' + reply)
+        print('[send] ' + f"{enteredUsername}: "+ reply)
         self.clientSocket.send(reply.encode('utf-8'))
 
     """
@@ -178,7 +188,7 @@ class ClientThread(Thread):
         self.clientSocket.send(reply.encode('utf-8'))
 
     """
-    logic for processing BCM command
+    logic for processing ATU command
 
     """
     def process_atu(self, message):
@@ -198,10 +208,123 @@ class ClientThread(Thread):
         print(allReply)
 
         self.clientSocket.send(allReply.encode('utf-8'))
+    
+    """
+    logic for processing SRB command
 
+    """
+    def process_srb(self, message):
 
+        with open('credentials.txt') as f:
+            for line in f.readlines():
+                try:
+                    (username, password) = line.split(' ')
+                    validCredentials[username] = password.strip()
+                except:pass
 
+        enteredUsername = message['username']
+        room_users = message['room_users']
+        print("{} issued SRB command".format(enteredUsername))
+
+        errorReply = ""
+        valid_room_users = []
+        for user in room_users:
+            if user == enteredUsername:
+                errorReply += "Error: you cannot build a separate room with yourself.\n"
+            elif user not in validCredentials:
+                errorReply +=  f"Error: the corresponding user [{user}] does not exist.\n"
+            elif user not in userLog:
+                errorReply += f"Error: the corresponding user [{user}] is offline.\n"
+            else:
+                valid_room_users.append(user)
+
+        if errorReply == "":
+            valid_room_users.append(enteredUsername)
+
+            checkRoomCreated = False
+            for key in roomsLog:
+                inNum = 0
+                curr_room_users = roomsLog[key].get('room_users')
+                if len(curr_room_users) == len(valid_room_users):
+                    for user in curr_room_users:
+                        if user in valid_room_users:
+                            inNum += 1
+                if inNum == len(curr_room_users):
+                    checkRoomCreated = True
+                    createdReply = f"a separate room (ID: {roomsLog[key].get('room_ID')}) already created for these users."
+                    print('[send] ' + createdReply)
+                    self.clientSocket.send(createdReply.encode('utf-8'))
+
+            if checkRoomCreated == False:
+                numLogs = len(roomsLog)
+                newFileName = f"SR_{numLogs + 1}_messagelog.txt"
+                open(newFileName, 'w').close()
+
+                roomsLog[numLogs] = dict({'room_ID': numLogs + 1, 'room_creater': datetime.now(), 'room_users': valid_room_users, 'room_messages': {}})
+                validUsers = ""
+                for user in valid_room_users[:-1]:
+                    validUsers += user + ", "
+                validUsers += valid_room_users[-1] + "\n"
+                reply = "Separate chat room has been created, room ID: {}, users in this room: {}".format(roomsLog[numLogs].get('room_ID'), validUsers)
+                print('[send] ' + reply)
+                self.clientSocket.send(reply.encode('utf-8'))
+        else:
+            print('[send] ' + errorReply)
+            self.clientSocket.send(errorReply.encode('utf-8'))
         
+    """
+    logic for processing SRM command
+
+    """
+    def process_srm(self, message):
+        enteredUsername = message['username']
+        roomID = int(message['roomID'])
+        messageToSend = message['message']
+
+        numRooms = len(roomsLog)
+        # if not isinstance(roomID,int):
+        #     reply = "The separate room does not exist. Please insert a valid integer room id"
+        #     print('[send] ' + reply)
+        #     self.clientSocket.send(reply.encode('utf-8'))
+            
+        if roomID >= 1 and roomID <= numRooms: 
+            curr_room_users = roomsLog[roomID-1].get('room_users')
+            if enteredUsername in curr_room_users:
+                fileName = f"SR_{roomID}_messagelog.txt"
+                
+                curr_room_messages = roomsLog[roomID-1].get('room_messages')
+                curr_messages_num = len(curr_room_messages)
+                curr_room_messages[curr_messages_num] = dict({'logTimestamp': datetime.now(), 'srm_user': enteredUsername, 'srm_message': messageToSend})
+                srm_messageLogFile = open(fileName, 'a')
+                logTimestamp = curr_room_messages[curr_messages_num].get('logTimestamp').strftime("%d %b %Y %H:%M:%S")
+                newLogLine = "{}; {}; {}; {}\n".format(curr_messages_num + 1, logTimestamp,enteredUsername,messageToSend)
+                srm_messageLogFile.write(newLogLine)
+                srm_messageLogFile.close()
+
+                print_response = "{} issued a message in separate room {}: ".format(enteredUsername, roomID)
+                print_response += newLogLine
+                print(print_response)
+
+                reply = "Issued a message in separate room, #{} issued at {}.".format(curr_messages_num + 1, logTimestamp)
+                print('[send] ' + reply)
+                self.clientSocket.send(reply.encode('utf-8'))
+            
+            else:
+                reply = "You are not in this separate room chat."
+                print('[send] ' + reply)
+                self.clientSocket.send(reply.encode('utf-8'))
+        
+        else:
+            reply = "The separate room does not exist."
+            print('[send] ' + reply)
+            self.clientSocket.send(reply.encode('utf-8'))
+        
+    """
+    logic for processing OUT command
+
+    """
+    def process_out(self, message):
+        enteredUsername = message['username']
 
 
 
