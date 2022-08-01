@@ -1,7 +1,7 @@
 """
     Multi-Threaded Server
     Python 3
-    Usage: python3 server3.py SERVER_PORT number-of-allowed-failed-consecutive-attempt
+    Usage: python3 Server.py SERVER_PORT number-of-allowed-failed-consecutive-attempt
     coding: utf-8
     
 """
@@ -18,7 +18,7 @@ if len(sys.argv) != 3:
 
 serverName = gethostname()
 serverHost = gethostbyname(serverName)
-print(serverHost)
+print("server IP: " + serverHost)
 serverPort = int(sys.argv[1])
 allowedFail = int(sys.argv[2])
 
@@ -26,7 +26,7 @@ if not isinstance(serverPort,int):
     print("\n===== SERVER_PORT invalid =====\n")
     exit(0)
 
-if not isinstance(allowedFail,int) or int(sys.argv[2]) not in range(1,5):
+if not isinstance(allowedFail,int) or int(sys.argv[2]) not in range(1,6):
     print("\n===== Invalid number of allowed failed consecutive attempt. The valid value of argument number is an integer between 1 and 5 ======\n")
     exit(0)
 
@@ -42,6 +42,9 @@ serverSocket.bind(serverAddress)
 validCredentials = {}
 blockRecord = {}
 userLog = {}
+messageLog = {}
+open('userlog.txt', 'w').close()
+open('messagelog.txt', 'w').close()
 
 """
     Define multi-thread class for client
@@ -69,21 +72,17 @@ class ClientThread(Thread):
             data = self.clientSocket.recv(1024)
             message = json.loads(data.decode('utf-8'))
             
-            # if the message from client is empty, the client would be off-line then set the client as offline (alive=Flase)
-            if message == '':
-                self.clientAlive = False
-                print("===== the user disconnected - ", clientAddress)
-                break
             
             # handle message from the client
             if message['requestType'] == 'login':
-                print("[recv] New login request")
+                print(f"[recv] New login request from {message['username']}")
                 self.process_login(message)
-            elif message['requestType'] == 'download':
-                print("[recv] Download request")
-                message = 'download filename'
-                print("[send] " + message)
-                self.clientSocket.send(message.encode())
+            elif message['requestType'] == 'BCM':
+                print(f"[recv] Broadcast Message request from {message['username']}")
+                self.process_bcm(message)
+            elif message['requestType'] == 'ATU':
+                print(f"[recv] Download Active Users request from {message['username']}")
+                self.process_atu(message)
             else:
                 print("[recv] " + message)
                 print("[send] Cannot understand this message")
@@ -152,6 +151,57 @@ class ClientThread(Thread):
 
         print('[send] ' + reply)
         self.clientSocket.send(reply.encode('utf-8'))
+
+    """
+    logic for processing BCM command
+
+    """
+    def process_bcm(self, message):
+
+        bcm_message = message['message_content']
+        enteredUsername = message['username']
+
+        numLogs = len(messageLog)
+        messageLog[numLogs] = dict({'logTimestamp': datetime.now(), 'bcm_user': enteredUsername, 'bcm_message': bcm_message})
+
+        messageLogFile = open("messagelog.txt", 'a')
+        logTimestamp = messageLog[numLogs].get('logTimestamp').strftime("%d %b %Y %H:%M:%S")
+        newLogLine = "{}; {}; {}; {}\n".format(numLogs + 1, logTimestamp,enteredUsername,bcm_message)
+        messageLogFile.write(newLogLine)
+        messageLogFile.close()
+
+        print_response = "{} broadcasted BCM #{} \"{}\" at {}.".format(enteredUsername, numLogs + 1, bcm_message, logTimestamp)
+        print(print_response)
+
+        reply = "Broadcast message, #{} broadcast at {}.".format(numLogs + 1, logTimestamp)
+        print('[send] ' + reply)
+        self.clientSocket.send(reply.encode('utf-8'))
+
+    """
+    logic for processing BCM command
+
+    """
+    def process_atu(self, message):
+
+        enteredUsername = message['username']
+        print("{} issued ATU command".format(enteredUsername))
+
+        print("Return active user list: ")
+        allReply = ""
+        for key in userLog:
+            if key != enteredUsername:
+                activeUser = userLog[key]
+                allReply += "{}, {}, {}, active since {}.\n".format(key, activeUser.get('clientIPaddress'), activeUser.get('clientUDPport'), activeUser.get('logTimestamp').strftime("%d %b %Y %H:%M:%S"))
+
+        if allReply == "":
+            allReply = "no other active user"  
+        print(allReply)
+
+        self.clientSocket.send(allReply.encode('utf-8'))
+
+
+
+        
 
 
 

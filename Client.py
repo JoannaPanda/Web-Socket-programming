@@ -73,6 +73,47 @@ while True:
             login_response = data.decode('utf-8')
         else:
             print("[recv] Message makes no sense")
+
+    while logged_in:
+
+        command = input("Enter one of the following commands (BCM, ATU, SRB, SRM, RDM, OUT, UPD): ")
+
+        if command.split(" ")[0] == "BCM":
+            if len(command.split(" ")) == 1:
+                print("Error, invalid command! Please enter BCM message_you_want_to_broadcast.")
+                continue
+
+            command_content = json.dumps(dict({'requestType': 'BCM', 'message_content': command.split(" ", 1)[1], 'username': username}))
+            clientSocket.sendall(command_content.encode('utf-8'))
+            
+            data = clientSocket.recv(1024)
+            bcm_response = data.decode('utf-8')
+            print(bcm_response)
+        elif command.split(" ")[0] == "ATU":
+            if len(command.split(" ")) > 1:
+                print("Error, invalid command! Please enter ATU only.")
+                continue
+
+            command_content = json.dumps(dict({'requestType': 'ATU', 'username': username}))
+            clientSocket.sendall(command_content.encode('utf-8'))
+            
+            data = clientSocket.recv(1024)
+            atu_response = data.decode('utf-8')
+            print(atu_response)
+        elif command.split(" ")[0] == "SRB":
+            print("haven't implemented yet")
+        elif command.split(" ")[0] == "SRM":
+            print("haven't implemented yet")
+        elif command.split(" ")[0] == "RDM":
+            print("haven't implemented yet")
+        elif command.split(" ")[0] == "OUT":
+            print("haven't implemented yet")
+        elif command.split(" ")[0] == "UPD":
+            print("haven't implemented yet")
+        else:
+            print("Error, invalid command! Please try again.")
+            continue
+        
         
     ans = input('\nDo you want to continue(y/n) :')
     if ans == 'y':
